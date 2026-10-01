@@ -20,24 +20,24 @@ app.post("/api/ask", async (req, res) => {
       return res.status(400).json({ error: "Введите вопрос." });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       return res.status(500).json({
-        error: "OPENAI_API_KEY не настроен."
+        error: "OPENROUTER_API_KEY не настроен."
       });
     }
 
     const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1"
     });
 
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-      tools: [{ type: "web_search" }],
-      input: [
+    const response = await client.chat.completions.create({
+      model: "openrouter/free",
+      messages: [
         {
           role: "system",
           content:
-            "Ты WebAI — полезный веб-исследователь. Используй веб-поиск для актуальной информации. Отвечай на русском языке, ясно и по существу. Не выдумывай факты. При возможности указывай источники."
+            "Ты WebAI — полезный AI-помощник. Отвечай на русском языке, ясно и по существу. Не выдумывай факты."
         },
         {
           role: "user",
@@ -46,35 +46,13 @@ app.post("/api/ask", async (req, res) => {
       ]
     });
 
-    const answer = response.output_text || "Не удалось получить ответ.";
-    const sources = [];
+    const answer =
+      response.choices?.[0]?.message?.content ||
+      "Не удалось получить ответ.";
 
-    for (const item of response.output || []) {
-      if (item.type === "message") {
-        for (const part of item.content || []) {
-          for (const ann of part.annotations || []) {
-            if (ann.type === "url_citation" && ann.url) {
-              sources.push({
-                title: ann.title || ann.url,
-                url: ann.url
-              });
-            }
-          }
-        }
-      }
-    }
-
-    const uniqueSources = Array.from(
-      new Map(sources.map((s) => [s.url, s])).values()
-    );
-
-    res.json({
-      answer,
-      sources: uniqueSources
-    });
+    res.json({ answer, sources: [] });
   } catch (error) {
     console.error(error);
-
     res.status(500).json({
       error: error?.message || "Ошибка сервера."
     });
