@@ -17,9 +17,11 @@ document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{
 
 let recognition=null;
 let isListening=false;
-let finalTranscript='';
+let baseText='';
+let voiceText='';
 
 if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
+
   const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 
   recognition=new SpeechRecognition();
@@ -29,7 +31,9 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
 
   recognition.onstart=()=>{
     isListening=true;
-    finalTranscript='';
+    baseText=input.value.trim();
+    voiceText='';
+
     voiceButton.textContent='🔴';
     voiceButton.style.background='rgba(255,60,60,.18)';
     voiceButton.style.borderColor='rgba(255,80,80,.6)';
@@ -37,25 +41,27 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
   };
 
   recognition.onresult=e=>{
-    let interimTranscript='';
 
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const transcript=e.results[i][0].transcript;
+    let newVoiceText='';
 
-      if(e.results[i].isFinal){
-        finalTranscript+=transcript+' ';
-      }else{
-        interimTranscript+=transcript;
-      }
+    for(let i=0;i<e.results.length;i++){
+      newVoiceText+=e.results[i][0].transcript;
     }
 
-    const existingText=input.value.trim();
-    const voiceText=(finalTranscript+interimTranscript).trim();
+    voiceText=newVoiceText.trim();
+
+    let newValue=baseText;
 
     if(voiceText){
-      input.value=(existingText?existingText+' ':'')+voiceText;
-      input.dispatchEvent(new Event('input'));
+      newValue+=(baseText?' ':'')+voiceText;
     }
+
+    if(newValue.length>4000){
+      newValue=newValue.slice(0,4000);
+    }
+
+    input.value=newValue;
+    input.dispatchEvent(new Event('input'));
   };
 
   recognition.onerror=e=>{
@@ -64,9 +70,13 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
   };
 
   recognition.onend=()=>{
-    if(isListening)stopListening();
+    if(isListening){
+      stopListening();
+    }
   };
+
 }else{
+
   voiceButton.disabled=true;
   voiceButton.textContent='🎤';
   voiceButton.title='Голосовой ввод не поддерживается этим браузером';
@@ -74,6 +84,7 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
 }
 
 function stopListening(){
+
   isListening=false;
 
   if(recognition){
@@ -89,6 +100,7 @@ function stopListening(){
 }
 
 voiceButton.onclick=()=>{
+
   if(!recognition){
     alert('Голосовой ввод не поддерживается этим браузером.');
     return;
@@ -96,21 +108,28 @@ voiceButton.onclick=()=>{
 
   if(isListening){
     stopListening();
-  }else{
-    finalTranscript='';
-    try{
-      recognition.start();
-    }catch(e){}
+    return;
   }
+
+  baseText=input.value.trim();
+  voiceText='';
+
+  try{
+    recognition.start();
+  }catch(e){}
 };
 
 form.onsubmit=async e=>{
+
   e.preventDefault();
 
   const question=input.value.trim();
+
   if(!question)return;
 
-  if(isListening)stopListening();
+  if(isListening){
+    stopListening();
+  }
 
   button.disabled=true;
   button.textContent='Ищу…';
@@ -120,6 +139,7 @@ form.onsubmit=async e=>{
   sources.innerHTML='';
 
   try{
+
     const r=await fetch('/api/ask',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -128,25 +148,34 @@ form.onsubmit=async e=>{
 
     const d=await r.json();
 
-    if(!r.ok)throw Error(d.error||'Ошибка сервера');
+    if(!r.ok){
+      throw Error(d.error||'Ошибка сервера');
+    }
 
     answer.textContent=d.answer;
 
     if(d.sources?.length){
-      sources.innerHTML='<div class="sources-title">Источники</div>'+
+      sources.innerHTML=
+        '<div class="sources-title">Источники</div>'+
         d.sources.map(s=>
           `<a class="source" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`
         ).join('');
     }
+
   }catch(err){
+
     answer.textContent=`Ошибка: ${err.message}`;
+
   }finally{
+
     button.disabled=false;
     button.textContent='Спросить ↗';
+
   }
 };
 
 function esc(v){
+
   return String(v).replace(/[&<>"']/g,c=>({
     '&':'&amp;',
     '<':'&lt;',
@@ -154,4 +183,5 @@ function esc(v){
     '"':'&quot;',
     "'":'&#039;'
   }[c]));
+
 }
