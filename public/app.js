@@ -1,14 +1,27 @@
-const form=document.querySelector('#askForm'),input=document.querySelector('#question'),button=document.querySelector('#askButton'),counter=document.querySelector('#counter'),result=document.querySelector('#result'),answer=document.querySelector('#answer'),sources=document.querySelector('#sources'),voiceButton=document.querySelector('#voiceButton');
+const form=document.querySelector('#askForm'),
+input=document.querySelector('#question'),
+button=document.querySelector('#askButton'),
+counter=document.querySelector('#counter'),
+result=document.querySelector('#result'),
+answer=document.querySelector('#answer'),
+sources=document.querySelector('#sources'),
+voiceButton=document.querySelector('#voiceButton');
 
 input.addEventListener('input',()=>counter.textContent=`${input.value.length} / 4000`);
 
-document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{input.value=b.textContent;input.dispatchEvent(new Event('input'));input.focus()});
+document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{
+  input.value=b.textContent;
+  input.dispatchEvent(new Event('input'));
+  input.focus();
+});
 
 let recognition=null;
 let isListening=false;
+let finalTranscript='';
 
 if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
   const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+
   recognition=new SpeechRecognition();
   recognition.lang='ru-RU';
   recognition.continuous=true;
@@ -16,6 +29,7 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
 
   recognition.onstart=()=>{
     isListening=true;
+    finalTranscript='';
     voiceButton.textContent='🔴';
     voiceButton.style.background='rgba(255,60,60,.18)';
     voiceButton.style.borderColor='rgba(255,80,80,.6)';
@@ -23,15 +37,23 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
   };
 
   recognition.onresult=e=>{
-    let text='';
+    let interimTranscript='';
+
     for(let i=e.resultIndex;i<e.results.length;i++){
-      text+=e.results[i][0].transcript;
+      const transcript=e.results[i][0].transcript;
+
+      if(e.results[i].isFinal){
+        finalTranscript+=transcript+' ';
+      }else{
+        interimTranscript+=transcript;
+      }
     }
 
-    if(text.trim()){
-      const finalText=text.trim();
-      input.value=(input.value.trim()?input.value.trim()+' ':'')+finalText;
-      if(input.value.length>4000) input.value=input.value.slice(0,4000);
+    const existingText=input.value.trim();
+    const voiceText=(finalTranscript+interimTranscript).trim();
+
+    if(voiceText){
+      input.value=(existingText?existingText+' ':'')+voiceText;
       input.dispatchEvent(new Event('input'));
     }
   };
@@ -42,7 +64,7 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
   };
 
   recognition.onend=()=>{
-    if(isListening) stopListening();
+    if(isListening)stopListening();
   };
 }else{
   voiceButton.disabled=true;
@@ -53,9 +75,13 @@ if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
 
 function stopListening(){
   isListening=false;
+
   if(recognition){
-    try{recognition.stop()}catch(e){}
+    try{
+      recognition.stop();
+    }catch(e){}
   }
+
   voiceButton.textContent='🎤';
   voiceButton.style.background='rgba(255,255,255,.06)';
   voiceButton.style.borderColor='rgba(255,255,255,.15)';
@@ -71,12 +97,16 @@ voiceButton.onclick=()=>{
   if(isListening){
     stopListening();
   }else{
-    try{recognition.start()}catch(e){}
+    finalTranscript='';
+    try{
+      recognition.start();
+    }catch(e){}
   }
 };
 
 form.onsubmit=async e=>{
   e.preventDefault();
+
   const question=input.value.trim();
   if(!question)return;
 
@@ -84,6 +114,7 @@ form.onsubmit=async e=>{
 
   button.disabled=true;
   button.textContent='Ищу…';
+
   result.classList.remove('hidden');
   answer.textContent='Ищу актуальную информацию в интернете…';
   sources.innerHTML='';
@@ -96,12 +127,16 @@ form.onsubmit=async e=>{
     });
 
     const d=await r.json();
+
     if(!r.ok)throw Error(d.error||'Ошибка сервера');
 
     answer.textContent=d.answer;
 
     if(d.sources?.length){
-      sources.innerHTML='<div class="sources-title">Источники</div>'+d.sources.map(s=>`<a class="source" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join('');
+      sources.innerHTML='<div class="sources-title">Источники</div>'+
+        d.sources.map(s=>
+          `<a class="source" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`
+        ).join('');
     }
   }catch(err){
     answer.textContent=`Ошибка: ${err.message}`;
@@ -119,4 +154,4 @@ function esc(v){
     '"':'&quot;',
     "'":'&#039;'
   }[c]));
-    }
+}
