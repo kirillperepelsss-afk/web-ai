@@ -1,1 +1,96 @@
-<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WebAI</title><link rel="stylesheet" href="/styles.css"></head><body><main class="shell"><header><div class="logo"><img src="/webai-avatar.png" alt="WebAI" style="width:42px;height:42px;border-radius:50%;vertical-align:middle;margin-right:10px;">WebAI</div><div class="badge">Интернет + ИИ</div></header><section class="hero"><p class="eyebrow">Умный поиск</p><h1>Спроси что угодно.<br><span>Получи ответ с источниками.</span></h1><p class="subtitle">WebAI ищет актуальную информацию в интернете и превращает её в понятный ответ.</p><form id="askForm" class="search-box"><textarea id="question" rows="2" maxlength="4000" placeholder="Например: Какие технологии ИИ популярны в 2026 году?"></textarea><div class="bottom"><span id="counter">0 / 4000</span><div style="display:flex;align-items:center;gap:8px;"><button type="button" id="voiceButton" aria-label="Голосовой ввод" title="Голосовой ввод" style="width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:inherit;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;">🎤</button><button id="askButton">Спросить ↗</button></div></div></form><div class="examples"><button>Какие новости технологий сегодня?</button><button>Объясни квантовые компьютеры простыми словами</button><button>Сравни два популярных смартфона</button></div></section><section id="result" class="result hidden"><div class="head">● Ответ WebAI</div><article id="answer"></article><div id="sources"></div></section><footer>WebAI MVP</footer></main><script src="/app.js"></script></body></html>
+
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WebAI</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.voice-button {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(103,232,249,.35);
+  background: linear-gradient(145deg,rgba(34,211,238,.16),rgba(139,92,246,.16));
+  color: #67e8f9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(34,211,238,.10);
+  transition: background .25s,box-shadow .25s,transform .2s;
+}
+.voice-button:hover {
+  background: linear-gradient(145deg,rgba(34,211,238,.3),rgba(139,92,246,.3));
+  box-shadow: 0 0 22px rgba(34,211,238,.25);
+  transform: scale(1.06);
+}
+.voice-button:active { transform: scale(.94); }
+.voice-button.recording {
+  color: #ff6b8a;
+  border-color: rgba(255,107,138,.8);
+  background: rgba(255,55,95,.16);
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%,100% { box-shadow: 0 0 8px rgba(255,55,95,.2); }
+  50% { box-shadow: 0 0 24px rgba(255,55,95,.65); }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+<header>
+<div class="logo"><img src="/webai-avatar.png" alt="WebAI" style="width:42px;height:42px;border-radius:50%;vertical-align:middle;margin-right:10px;">WebAI</div>
+<div class="badge">Интернет + ИИ</div>
+</header>
+<section class="hero">
+<p class="eyebrow">Умный поиск</p>
+<h1>Спроси что угодно.<br><span>Получи ответ с источниками.</span></h1>
+<p class="subtitle">WebAI ищет актуальную информацию в интернете и превращает её в понятный ответ.</p>
+<form id="askForm" class="search-box">
+<textarea id="question" rows="2" maxlength="4000" placeholder="Например: Какие технологии ИИ популярны в 2026 году?"></textarea>
+<div class="bottom">
+<span id="counter">0 / 4000</span>
+<div style="display:flex;align-items:center;gap:8px;">
+<button type="button" id="voiceButton" aria-label="Голосовой ввод" title="Голосовой ввод" class="voice-button">
+<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<rect x="9" y="3" width="6" height="12" rx="3"/>
+<path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21m-4 0h8"/>
+</svg>
+</button>
+<button id="askButton">Спросить ↗</button>
+</div>
+</div>
+</form>
+<div class="examples">
+<button>Какие новости технологий сегодня?</button>
+<button>Объясни квантовые компьютеры простыми словами</button>
+<button>Сравни два популярных смартфона</button>
+</div>
+</section>
+<section id="result" class="result hidden">
+<div class="head">● Ответ WebAI</div>
+<article id="answer"></article>
+<div id="sources"></div>
+</section>
+<footer>WebAI MVP</footer>
+</main>
+<script src="/app.js"></script>
+<script>
+const mic=document.querySelector('#voiceButton');
+if(mic){
+  const observer=new MutationObserver(()=>{
+    if(mic.textContent.includes('🔴')){
+      mic.classList.add('recording');
+    }else{
+      mic.classList.remove('recording');
+    }
+  });
+  observer.observe(mic,{childList:true,characterData:true,subtree:true});
+}
+</script>
+</body>
+</html>
