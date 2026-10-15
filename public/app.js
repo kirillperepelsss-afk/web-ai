@@ -7,13 +7,15 @@ const answer = document.querySelector('#answer');
 const sources = document.querySelector('#sources');
 const voiceButton = document.querySelector('#voiceButton');
 
+// Счётчик символов
 input.addEventListener('input', () => {
 counter.textContent = "${input.value.length} / 4000";
 });
 
-document.querySelectorAll('.examples button').forEach(b => {
-b.addEventListener('click', () => {
-input.value = b.textContent;
+// Примеры вопросов
+document.querySelectorAll('.examples button').forEach(item => {
+item.addEventListener('click', () => {
+input.value = item.textContent;
 input.dispatchEvent(new Event('input'));
 input.focus();
 });
@@ -22,7 +24,6 @@ input.focus();
 let recognition = null;
 let isListening = false;
 let baseText = '';
-let finalText = '';
 
 const SpeechRecognition =
 window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -36,7 +37,6 @@ recognition.interimResults = true;
 recognition.onstart = () => {
 isListening = true;
 baseText = input.value.trim();
-finalText = '';
 
 voiceButton.classList.add('recording');
 voiceButton.title = 'Остановить запись';
@@ -45,29 +45,30 @@ voiceButton.setAttribute('aria-label', 'Остановить запись');
 };
 
 recognition.onresult = event => {
-let interimText = '';
+// Каждый раз собираем текущие результаты заново.
+// Не добавляем повторно ранее распознанные фразы.
+const spokenParts = [];
 
-for (let i = event.resultIndex; i < event.results.length; i++) {
-  const transcript = event.results[i][0].transcript.trim();
+for (let i = 0; i < event.results.length; i++) {
+  const phrase = event.results[i][0].transcript.trim();
 
-  if (event.results[i].isFinal) {
-    if (transcript) {
-      finalText += (finalText ? ' ' : '') + transcript;
-    }
-  } else {
-    interimText += (interimText ? ' ' : '') + transcript;
+  if (phrase) {
+    spokenParts.push(phrase);
   }
 }
 
-const parts = [baseText, finalText, interimText].filter(Boolean);
-input.value = parts.join(' ').slice(0, 4000);
+const spokenText = spokenParts.join(' ').trim();
+const fullText = [baseText, spokenText]
+  .filter(Boolean)
+  .join(' ');
+
+input.value = fullText.slice(0, 4000);
 input.dispatchEvent(new Event('input'));
 
 };
 
 recognition.onerror = event => {
 console.error('Ошибка голосового ввода:', event.error);
-stopListening();
 };
 
 recognition.onend = () => {
@@ -78,10 +79,6 @@ resetVoiceButton();
 } else {
 voiceButton.disabled = true;
 voiceButton.title = 'Голосовой ввод не поддерживается этим браузером';
-voiceButton.setAttribute(
-'aria-label',
-'Голосовой ввод не поддерживается'
-);
 voiceButton.style.opacity = '0.5';
 }
 
@@ -100,6 +97,7 @@ isListening = false;
 resetVoiceButton();
 }
 
+// Кнопка микрофона
 voiceButton.addEventListener('click', () => {
 if (!recognition) {
 alert('Голосовой ввод не поддерживается этим браузером.');
@@ -112,15 +110,15 @@ return;
 }
 
 baseText = input.value.trim();
-finalText = '';
 
 try {
 recognition.start();
 } catch (error) {
-console.error('Не удалось запустить голосовой ввод:', error);
+console.error('Не удалось запустить микрофон:', error);
 }
 });
 
+// Отправка вопроса в WebAI
 form.addEventListener('submit', async event => {
 event.preventDefault();
 
@@ -141,7 +139,9 @@ sources.innerHTML = '';
 try {
 const response = await fetch('/api/ask', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: {
+'Content-Type': 'application/json'
+},
 body: JSON.stringify({ question })
 });
 
@@ -154,12 +154,14 @@ if (!response.ok) {
 answer.textContent = data.answer || 'Ответ не получен.';
 
 if (Array.isArray(data.sources) && data.sources.length) {
-  const title = document.createElement('div');
-  title.className = 'sources-title';
-  title.textContent = 'Источники';
-  sources.appendChild(title);
+  const heading = document.createElement('div');
+  heading.className = 'sources-title';
+  heading.textContent = 'Источники';
+  sources.appendChild(heading);
 
   data.sources.forEach(source => {
+    if (!source.url) return;
+
     const link = document.createElement('a');
     link.className = 'source';
     link.href = source.url;
