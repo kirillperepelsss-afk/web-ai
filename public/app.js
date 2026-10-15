@@ -1,187 +1,179 @@
-const form=document.querySelector('#askForm'),
-input=document.querySelector('#question'),
-button=document.querySelector('#askButton'),
-counter=document.querySelector('#counter'),
-result=document.querySelector('#result'),
-answer=document.querySelector('#answer'),
-sources=document.querySelector('#sources'),
-voiceButton=document.querySelector('#voiceButton');
+const form = document.querySelector('#askForm');
+const input = document.querySelector('#question');
+const button = document.querySelector('#askButton');
+const counter = document.querySelector('#counter');
+const result = document.querySelector('#result');
+const answer = document.querySelector('#answer');
+const sources = document.querySelector('#sources');
+const voiceButton = document.querySelector('#voiceButton');
 
-input.addEventListener('input',()=>counter.textContent=`${input.value.length} / 4000`);
-
-document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{
-  input.value=b.textContent;
-  input.dispatchEvent(new Event('input'));
-  input.focus();
+input.addEventListener('input', () => {
+counter.textContent = "${input.value.length} / 4000";
 });
 
-let recognition=null;
-let isListening=false;
-let baseText='';
-let voiceText='';
+document.querySelectorAll('.examples button').forEach(b => {
+b.addEventListener('click', () => {
+input.value = b.textContent;
+input.dispatchEvent(new Event('input'));
+input.focus();
+});
+});
 
-if('SpeechRecognition' in window || 'webkitSpeechRecognition' in window){
+let recognition = null;
+let isListening = false;
+let baseText = '';
+let finalText = '';
 
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+const SpeechRecognition =
+window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  recognition=new SpeechRecognition();
-  recognition.lang='ru-RU';
-  recognition.continuous=true;
-  recognition.interimResults=true;
+if (SpeechRecognition) {
+recognition = new SpeechRecognition();
+recognition.lang = 'ru-RU';
+recognition.continuous = true;
+recognition.interimResults = true;
 
-  recognition.onstart=()=>{
-    isListening=true;
-    baseText=input.value.trim();
-    voiceText='';
+recognition.onstart = () => {
+isListening = true;
+baseText = input.value.trim();
+finalText = '';
 
-    voiceButton.textContent='🔴';
-    voiceButton.style.background='rgba(255,60,60,.18)';
-    voiceButton.style.borderColor='rgba(255,80,80,.6)';
-    voiceButton.title='Остановить запись';
-  };
+voiceButton.classList.add('recording');
+voiceButton.title = 'Остановить запись';
+voiceButton.setAttribute('aria-label', 'Остановить запись');
 
-  recognition.onresult=e=>{
-
-    let newVoiceText='';
-
-    for(let i=0;i<e.results.length;i++){
-      newVoiceText+=e.results[i][0].transcript;
-    }
-
-    voiceText=newVoiceText.trim();
-
-    let newValue=baseText;
-
-    if(voiceText){
-      newValue+=(baseText?' ':'')+voiceText;
-    }
-
-    if(newValue.length>4000){
-      newValue=newValue.slice(0,4000);
-    }
-
-    input.value=newValue;
-    input.dispatchEvent(new Event('input'));
-  };
-
-  recognition.onerror=e=>{
-    console.error('Ошибка голосового ввода:',e.error);
-    stopListening();
-  };
-
-  recognition.onend=()=>{
-    if(isListening){
-      stopListening();
-    }
-  };
-
-}else{
-
-  voiceButton.disabled=true;
-  voiceButton.textContent='🎤';
-  voiceButton.title='Голосовой ввод не поддерживается этим браузером';
-  voiceButton.style.opacity='.5';
-}
-
-function stopListening(){
-
-  isListening=false;
-
-  if(recognition){
-    try{
-      recognition.stop();
-    }catch(e){}
-  }
-
-  voiceButton.textContent='🎤';
-  voiceButton.style.background='rgba(255,255,255,.06)';
-  voiceButton.style.borderColor='rgba(255,255,255,.15)';
-  voiceButton.title='Голосовой ввод';
-}
-
-voiceButton.onclick=()=>{
-
-  if(!recognition){
-    alert('Голосовой ввод не поддерживается этим браузером.');
-    return;
-  }
-
-  if(isListening){
-    stopListening();
-    return;
-  }
-
-  baseText=input.value.trim();
-  voiceText='';
-
-  try{
-    recognition.start();
-  }catch(e){}
 };
 
-form.onsubmit=async e=>{
+recognition.onresult = event => {
+let interimText = '';
 
-  e.preventDefault();
+for (let i = event.resultIndex; i < event.results.length; i++) {
+  const transcript = event.results[i][0].transcript.trim();
 
-  const question=input.value.trim();
-
-  if(!question)return;
-
-  if(isListening){
-    stopListening();
-  }
-
-  button.disabled=true;
-  button.textContent='Ищу…';
-
-  result.classList.remove('hidden');
-  answer.textContent='Ищу актуальную информацию в интернете…';
-  sources.innerHTML='';
-
-  try{
-
-    const r=await fetch('/api/ask',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({question})
-    });
-
-    const d=await r.json();
-
-    if(!r.ok){
-      throw Error(d.error||'Ошибка сервера');
+  if (event.results[i].isFinal) {
+    if (transcript) {
+      finalText += (finalText ? ' ' : '') + transcript;
     }
-
-    answer.textContent=d.answer;
-
-    if(d.sources?.length){
-      sources.innerHTML=
-        '<div class="sources-title">Источники</div>'+
-        d.sources.map(s=>
-          `<a class="source" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`
-        ).join('');
-    }
-
-  }catch(err){
-
-    answer.textContent=`Ошибка: ${err.message}`;
-
-  }finally{
-
-    button.disabled=false;
-    button.textContent='Спросить ↗';
-
+  } else {
+    interimText += (interimText ? ' ' : '') + transcript;
   }
+}
+
+const parts = [baseText, finalText, interimText].filter(Boolean);
+input.value = parts.join(' ').slice(0, 4000);
+input.dispatchEvent(new Event('input'));
+
 };
 
-function esc(v){
+recognition.onerror = event => {
+console.error('Ошибка голосового ввода:', event.error);
+stopListening();
+};
 
-  return String(v).replace(/[&<>"']/g,c=>({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'":'&#039;'
-  }[c]));
+recognition.onend = () => {
+isListening = false;
+resetVoiceButton();
+};
 
+} else {
+voiceButton.disabled = true;
+voiceButton.title = 'Голосовой ввод не поддерживается этим браузером';
+voiceButton.setAttribute(
+'aria-label',
+'Голосовой ввод не поддерживается'
+);
+voiceButton.style.opacity = '0.5';
 }
+
+function resetVoiceButton() {
+voiceButton.classList.remove('recording');
+voiceButton.title = 'Голосовой ввод';
+voiceButton.setAttribute('aria-label', 'Голосовой ввод');
+}
+
+function stopListening() {
+if (recognition && isListening) {
+recognition.stop();
+}
+
+isListening = false;
+resetVoiceButton();
+}
+
+voiceButton.addEventListener('click', () => {
+if (!recognition) {
+alert('Голосовой ввод не поддерживается этим браузером.');
+return;
+}
+
+if (isListening) {
+stopListening();
+return;
+}
+
+baseText = input.value.trim();
+finalText = '';
+
+try {
+recognition.start();
+} catch (error) {
+console.error('Не удалось запустить голосовой ввод:', error);
+}
+});
+
+form.addEventListener('submit', async event => {
+event.preventDefault();
+
+const question = input.value.trim();
+if (!question) return;
+
+if (isListening) {
+stopListening();
+}
+
+button.disabled = true;
+button.textContent = 'Ищу…';
+
+result.classList.remove('hidden');
+answer.textContent = 'Ищу актуальную информацию в интернете…';
+sources.innerHTML = '';
+
+try {
+const response = await fetch('/api/ask', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ question })
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(data.error || 'Ошибка сервера');
+}
+
+answer.textContent = data.answer || 'Ответ не получен.';
+
+if (Array.isArray(data.sources) && data.sources.length) {
+  const title = document.createElement('div');
+  title.className = 'sources-title';
+  title.textContent = 'Источники';
+  sources.appendChild(title);
+
+  data.sources.forEach(source => {
+    const link = document.createElement('a');
+    link.className = 'source';
+    link.href = source.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = source.title || source.url;
+    sources.appendChild(link);
+  });
+}
+
+} catch (error) {
+answer.textContent = "Ошибка: ${error.message}";
+} finally {
+button.disabled = false;
+button.textContent = 'Спросить ↗';
+}
+});
