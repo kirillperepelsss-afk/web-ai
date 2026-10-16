@@ -1,3 +1,4 @@
+
 (() => {
   'use strict';
 
@@ -19,6 +20,7 @@
   const STORAGE_KEY = 'webai-chat-history-v1';
   const MAX_CHATS = 50;
   const MAX_MESSAGES = 100;
+  const LOADING_TEXT = 'Ищу актуальную информацию в интернете…';
 
   let chats = loadChats();
   let activeChatId = null;
@@ -125,7 +127,6 @@
       .slice(0, 20);
   }
 
-  // Добавляем оформление и панель истории, не меняя index.html.
   const style = document.createElement('style');
   style.textContent = `
     .webai-history-toggle {
@@ -621,7 +622,6 @@
       answer.appendChild(card);
     });
 
-    // Показываем последние сообщения после открытия чата.
     result.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -654,9 +654,28 @@
     let chat = getActiveChat();
     if (!chat) chat = createChat(question);
 
+    // Собираем предыдущие завершённые сообщения ДО добавления текущего вопроса.
+    const history = chat.messages
+      .filter(message =>
+        message.answer &&
+        message.answer !== LOADING_TEXT &&
+        !message.answer.startsWith('Не удалось получить ответ:')
+      )
+      .flatMap(message => [
+        {
+          role: 'user',
+          content: message.question
+        },
+        {
+          role: 'assistant',
+          content: message.answer
+        }
+      ])
+      .slice(-12);
+
     const message = {
       question,
-      answer: 'Ищу актуальную информацию в интернете…',
+      answer: LOADING_TEXT,
       sources: []
     };
 
@@ -674,7 +693,10 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ question })
+        body: JSON.stringify({
+          question,
+          history
+        })
       });
 
       let data;
@@ -685,7 +707,9 @@
       }
 
       if (!response.ok) {
-        throw new Error(data.error || `Ошибка сервера (${response.status}).`);
+        throw new Error(
+          data.error || `Ошибка сервера (${response.status}).`
+        );
       }
 
       message.answer =
@@ -700,7 +724,6 @@
     } finally {
       chat.updatedAt = Date.now();
 
-      // Не даём новому чату вытеснить текущий из-за лимита хранения.
       chats = chats
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, MAX_CHATS);
@@ -720,6 +743,5 @@
     }
   });
 
-  // Восстанавливаем список чатов при запуске.
   renderHistory();
 })();
