@@ -1,4 +1,3 @@
-
 (() => {
   'use strict';
 
@@ -466,7 +465,10 @@
       .forEach(chat => {
         const item = document.createElement('div');
         item.className = 'webai-history-item';
-        if (chat.id === activeChatId) item.classList.add('active');
+
+        if (chat.id === activeChatId) {
+          item.classList.add('active');
+        }
 
         const open = document.createElement('button');
         open.type = 'button';
@@ -483,6 +485,7 @@
         open.append(name, date);
         open.addEventListener('click', () => {
           if (isLoading) return;
+
           activeChatId = chat.id;
           renderChat(chat);
           renderHistory();
@@ -503,6 +506,7 @@
           const confirmed = window.confirm(
             `Удалить чат «${chat.title}»? Это действие нельзя отменить.`
           );
+
           if (!confirmed) return;
 
           chats = chats.filter(entry => entry.id !== chat.id);
@@ -635,6 +639,7 @@
 
   newChatButton.addEventListener('click', () => {
     if (isLoading) return;
+
     activeChatId = null;
     resetView();
     closeHistory();
@@ -647,6 +652,10 @@
     const question = input.value.trim();
     if (!question || isLoading) return;
 
+    // Очищаем поле сразу после отправки, не удаляя вопрос из истории.
+    input.value = '';
+    updateCounter();
+
     isLoading = true;
     button.disabled = true;
     button.textContent = 'Ищу…';
@@ -654,7 +663,7 @@
     let chat = getActiveChat();
     if (!chat) chat = createChat(question);
 
-    // Собираем предыдущие завершённые сообщения ДО добавления текущего вопроса.
+    // Передаём модели предыдущие завершённые сообщения этого чата.
     const history = chat.messages
       .filter(message =>
         message.answer &&
@@ -700,6 +709,7 @@
       });
 
       let data;
+
       try {
         data = await response.json();
       } catch {
