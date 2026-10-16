@@ -1,3 +1,4 @@
+
 (() => {
   'use strict';
 
@@ -545,6 +546,24 @@
     return chats.find(chat => chat.id === activeChatId) || null;
   }
 
+  function scrollToLatestMessage() {
+    window.setTimeout(() => {
+      const lastMessage = answer.lastElementChild;
+
+      if (lastMessage) {
+        lastMessage.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end'
+        });
+      } else {
+        result.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }
+    }, 100);
+  }
+
   function renderChat(chat) {
     result.classList.remove('hidden');
     answer.replaceChildren();
@@ -626,7 +645,7 @@
       answer.appendChild(card);
     });
 
-    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollToLatestMessage();
   }
 
   function resetView() {
@@ -652,7 +671,7 @@
     const question = input.value.trim();
     if (!question || isLoading) return;
 
-    // Очищаем поле сразу после отправки, не удаляя вопрос из истории.
+    // Сразу очищаем поле ввода, сохраняя текст вопроса в переменной.
     input.value = '';
     updateCounter();
 
