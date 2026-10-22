@@ -14,7 +14,7 @@ app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const SYSTEM_PROMPT = `
-Ты WebAI — полезный AI-помощник.
+Ты NexAI — полезный AI-помощник.
 Отвечай на русском языке, ясно и по существу.
 Учитывай предыдущие сообщения текущего диалога.
 Понимай уточнения с учётом контекста разговора.
@@ -48,8 +48,6 @@ app.post("/api/ask", async (req, res) => {
       });
     }
 
-    // Принимаем только обычные сообщения пользователя и ответы ИИ.
-    // Системные инструкции из браузера не принимаются.
     const suppliedHistory = Array.isArray(req.body?.history)
       ? req.body.history
       : [];
@@ -67,8 +65,6 @@ app.post("/api/ask", async (req, res) => {
         content: message.content.trim().slice(0, MAX_MESSAGE_LENGTH)
       }));
 
-    // Если последнее сообщение истории — текущий вопрос,
-    // не добавляем его второй раз.
     const lastMessage = history[history.length - 1];
 
     if (
@@ -103,16 +99,17 @@ app.post("/api/ask", async (req, res) => {
 
     const content = response.choices?.[0]?.message?.content;
 
-    const answer = typeof content === "string" && content.trim()
-      ? content.trim()
-      : "Не удалось получить ответ.";
+    const answer =
+      typeof content === "string" && content.trim()
+        ? content.trim()
+        : "Не удалось получить ответ.";
 
     return res.json({
       answer,
       sources: []
     });
   } catch (error) {
-    console.error("WebAI API error:", error);
+    console.error("NexAI API error:", error);
 
     if (error?.status === 429) {
       return res.status(429).json({
@@ -127,5 +124,5 @@ app.post("/api/ask", async (req, res) => {
 });
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`WebAI running on port ${port}`);
+  console.log(`NexAI running on port ${port}`);
 });
