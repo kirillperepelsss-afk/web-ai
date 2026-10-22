@@ -455,7 +455,7 @@
       const empty = document.createElement('div');
       empty.className = 'webai-history-empty';
       empty.textContent =
-        'Пока нет сохранённых чатов. Задай WebAI первый вопрос — он появится здесь.';
+        'Пока нет сохранённых чатов. Задай NexAi первый вопрос — он появится здесь.';
       list.appendChild(empty);
       return;
     }
