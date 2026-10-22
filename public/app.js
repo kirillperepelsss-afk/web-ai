@@ -587,7 +587,7 @@
 
       const label = document.createElement('div');
       label.className = 'webai-message-label';
-      label.textContent = 'Ответ WebAI';
+      label.textContent = 'Ответ NexAi';
 
       const reply = document.createElement('div');
       reply.className = 'webai-message-answer';
