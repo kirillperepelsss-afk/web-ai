@@ -1,4 +1,3 @@
-
 (() => {
   'use strict';
 
@@ -11,20 +10,32 @@
   const sources = document.querySelector('#sources');
   const header = document.querySelector('header');
 
-  if (!form || !input || !button || !counter ||
-      !result || !answer || !sources || !header) {
-    console.error('WebAI: не найдены необходимые элементы страницы.');
+  const fileInput = document.querySelector('#fileInput');
+  const attachButton = document.querySelector('#attachButton');
+  const fileInfo = document.querySelector('#fileInfo');
+  const fileName = document.querySelector('#fileName');
+  const removeFile = document.querySelector('#removeFile');
+
+  if (
+    !form || !input || !button || !counter ||
+    !result || !answer || !sources || !header ||
+    !fileInput || !attachButton || !fileInfo ||
+    !fileName || !removeFile
+  ) {
+    console.error('NexAI: не найдены необходимые элементы страницы.');
     return;
   }
 
   const STORAGE_KEY = 'webai-chat-history-v1';
   const MAX_CHATS = 50;
   const MAX_MESSAGES = 100;
-  const LOADING_TEXT = 'Ищу актуальную информацию в интернете…';
+  const LOADING_TEXT = 'Обрабатываю запрос…';
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   let chats = loadChats();
   let activeChatId = null;
   let isLoading = false;
+  let selectedFile = null;
 
   function createId() {
     return typeof crypto !== 'undefined' &&
@@ -35,7 +46,9 @@
 
   function loadChats() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const saved = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) || '[]'
+      );
 
       if (!Array.isArray(saved)) return [];
 
@@ -81,7 +94,7 @@
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, MAX_CHATS);
     } catch (error) {
-      console.warn('WebAI: не удалось прочитать историю чатов.', error);
+      console.warn('NexAI: не удалось прочитать историю.', error);
       return [];
     }
   }
@@ -91,7 +104,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
       return true;
     } catch (error) {
-      console.warn('WebAI: не удалось сохранить историю чатов.', error);
+      console.warn('NexAI: не удалось сохранить историю.', error);
       return false;
     }
   }
@@ -99,6 +112,7 @@
   function validUrl(value) {
     try {
       const url = new URL(value, window.location.origin);
+
       return url.protocol === 'https:' || url.protocol === 'http:'
         ? url.href
         : null;
@@ -127,7 +141,9 @@
       .slice(0, 20);
   }
 
+  // Стили истории и сообщений
   const style = document.createElement('style');
+
   style.textContent = `
     .webai-history-toggle {
       margin-left: auto;
@@ -140,9 +156,11 @@
       font-size: 13px;
       font-weight: 650;
     }
+
     .webai-history-toggle:hover {
       background: rgba(139,92,246,.22);
     }
+
     .webai-history-overlay {
       position: fixed;
       inset: 0;
@@ -152,10 +170,12 @@
       visibility: hidden;
       transition: opacity .2s ease, visibility .2s ease;
     }
+
     .webai-history-overlay.open {
       opacity: 1;
       visibility: visible;
     }
+
     .webai-history-panel {
       position: fixed;
       z-index: 9999;
@@ -173,9 +193,11 @@
       transform: translateX(-105%);
       transition: transform .23s ease;
     }
+
     .webai-history-panel.open {
       transform: translateX(0);
     }
+
     .webai-history-top {
       display: flex;
       align-items: center;
@@ -183,14 +205,17 @@
       gap: 10px;
       margin-bottom: 17px;
     }
+
     .webai-history-title {
       font-size: 17px;
       font-weight: 750;
     }
+
     .webai-history-actions {
       display: flex;
       gap: 8px;
     }
+
     .webai-history-action {
       padding: 8px 10px;
       color: #ddd6fe;
@@ -200,6 +225,7 @@
       cursor: pointer;
       font-size: 12px;
     }
+
     .webai-history-list {
       flex: 1;
       overflow-y: auto;
@@ -207,12 +233,14 @@
       flex-direction: column;
       gap: 7px;
     }
+
     .webai-history-empty {
       padding: 20px 8px;
       color: #8992aa;
       font-size: 13px;
       line-height: 1.7;
     }
+
     .webai-history-item {
       display: flex;
       align-items: stretch;
@@ -222,10 +250,12 @@
       border-radius: 12px;
       background: transparent;
     }
+
     .webai-history-item.active {
       background: rgba(139,92,246,.12);
       border-color: rgba(139,92,246,.23);
     }
+
     .webai-history-open {
       min-width: 0;
       flex: 1;
@@ -236,6 +266,7 @@
       background: transparent;
       cursor: pointer;
     }
+
     .webai-history-name {
       display: block;
       overflow: hidden;
@@ -244,12 +275,14 @@
       font-size: 13px;
       font-weight: 600;
     }
+
     .webai-history-date {
       display: block;
       margin-top: 5px;
       color: #858da5;
       font-size: 11px;
     }
+
     .webai-history-delete {
       align-self: center;
       padding: 8px;
@@ -259,16 +292,19 @@
       background: transparent;
       cursor: pointer;
     }
+
     .webai-history-delete:hover {
       color: #fda4af;
       background: rgba(244,63,94,.1);
     }
+
     .webai-history-footer {
       padding-top: 13px;
       color: #788198;
       font-size: 11px;
       line-height: 1.6;
     }
+
     .webai-message {
       margin-top: 18px;
       padding: 16px;
@@ -276,6 +312,7 @@
       border-radius: 15px;
       background: rgba(255,255,255,.018);
     }
+
     .webai-message-question {
       margin-bottom: 12px;
       padding: 11px 13px;
@@ -287,6 +324,7 @@
       overflow-wrap: anywhere;
       line-height: 1.6;
     }
+
     .webai-message-label {
       margin-bottom: 7px;
       color: #b9a5ff;
@@ -295,6 +333,7 @@
       letter-spacing: .8px;
       text-transform: uppercase;
     }
+
     .webai-message-answer {
       color: #e8ebf6;
       font-size: 14px;
@@ -302,12 +341,14 @@
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
+
     .webai-message-sources {
       display: flex;
       flex-direction: column;
       gap: 6px;
       margin-top: 12px;
     }
+
     .webai-message-sources a {
       color: #c4b5fd;
       font-size: 12px;
@@ -315,14 +356,17 @@
       overflow-wrap: anywhere;
       text-decoration: none;
     }
+
     .webai-message-sources a:hover {
       text-decoration: underline;
     }
+
     .webai-message-tools {
       display: flex;
       justify-content: flex-end;
       margin-top: 12px;
     }
+
     .webai-copy-button {
       padding: 7px 10px;
       color: #b9c0d6;
@@ -332,33 +376,48 @@
       cursor: pointer;
       font-size: 11px;
     }
+
     .webai-copy-button:hover {
       color: #fff;
     }
+
+    #attachButton:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
     @media (max-width: 600px) {
       .webai-history-toggle {
         padding: 8px 10px;
         font-size: 12px;
       }
+
       .webai-message {
         padding: 12px;
       }
     }
   `;
+
   document.head.appendChild(style);
 
+  // Кнопка истории
   const historyToggle = document.createElement('button');
+
   historyToggle.type = 'button';
   historyToggle.className = 'webai-history-toggle';
   historyToggle.textContent = '☰ История';
   historyToggle.setAttribute('aria-label', 'Открыть историю чатов');
+
   header.appendChild(historyToggle);
 
+  // Панель истории
   const overlay = document.createElement('div');
+
   overlay.className = 'webai-history-overlay';
   overlay.setAttribute('aria-hidden', 'true');
 
   const panel = document.createElement('aside');
+
   panel.className = 'webai-history-panel';
   panel.setAttribute('aria-label', 'История чатов');
 
@@ -373,11 +432,13 @@
   actions.className = 'webai-history-actions';
 
   const newChatButton = document.createElement('button');
+
   newChatButton.type = 'button';
   newChatButton.className = 'webai-history-action';
   newChatButton.textContent = '+ Новый';
 
   const closeButton = document.createElement('button');
+
   closeButton.type = 'button';
   closeButton.className = 'webai-history-action';
   closeButton.textContent = 'Закрыть';
@@ -390,6 +451,7 @@
   list.className = 'webai-history-list';
 
   const footer = document.createElement('div');
+
   footer.className = 'webai-history-footer';
   footer.textContent =
     'История хранится в этом браузере. Очистка данных сайта может удалить её.';
@@ -422,6 +484,7 @@
     }
   });
 
+  // Счётчик символов
   function updateCounter() {
     counter.textContent = `${input.value.length} / 4000`;
   }
@@ -429,6 +492,7 @@
   input.addEventListener('input', updateCounter);
   updateCounter();
 
+  // Примеры вопросов
   document.querySelectorAll('.examples button').forEach(item => {
     item.addEventListener('click', () => {
       input.value = item.textContent.trim();
@@ -437,6 +501,50 @@
     });
   });
 
+  // Работа с файлами
+  function clearSelectedFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    fileInfo.style.display = 'none';
+    fileName.textContent = '';
+  }
+
+  attachButton.addEventListener('click', () => {
+    if (!isLoading) {
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+
+    if (!file) return;
+
+    const extension = file.name.split('.').pop().toLowerCase();
+
+    if (!['pdf', 'txt'].includes(extension)) {
+      alert('Поддерживаются только файлы PDF и TXT.');
+      clearSelectedFile();
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Файл слишком большой. Максимальный размер — 10 МБ.');
+      clearSelectedFile();
+      return;
+    }
+
+    selectedFile = file;
+    fileName.textContent = `📎 ${file.name}`;
+    fileInfo.style.display = 'block';
+  });
+
+  removeFile.addEventListener('click', () => {
+    if (isLoading) return;
+    clearSelectedFile();
+  });
+
+  // История чатов
   function formatDate(timestamp) {
     try {
       return new Date(timestamp).toLocaleDateString('ru-RU', {
@@ -453,9 +561,11 @@
 
     if (!chats.length) {
       const empty = document.createElement('div');
+
       empty.className = 'webai-history-empty';
       empty.textContent =
-        'Пока нет сохранённых чатов. Задай NexAi первый вопрос — он появится здесь.';
+        'Пока нет сохранённых чатов. Задай NexAI первый вопрос — он появится здесь.';
+
       list.appendChild(empty);
       return;
     }
@@ -465,6 +575,7 @@
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .forEach(chat => {
         const item = document.createElement('div');
+
         item.className = 'webai-history-item';
 
         if (chat.id === activeChatId) {
@@ -472,18 +583,22 @@
         }
 
         const open = document.createElement('button');
+
         open.type = 'button';
         open.className = 'webai-history-open';
 
         const name = document.createElement('span');
+
         name.className = 'webai-history-name';
         name.textContent = chat.title || 'Новый чат';
 
         const date = document.createElement('span');
+
         date.className = 'webai-history-date';
         date.textContent = formatDate(chat.updatedAt);
 
         open.append(name, date);
+
         open.addEventListener('click', () => {
           if (isLoading) return;
 
@@ -494,14 +609,19 @@
         });
 
         const remove = document.createElement('button');
+
         remove.type = 'button';
         remove.className = 'webai-history-delete';
         remove.textContent = '✕';
-        remove.setAttribute('aria-label', `Удалить чат: ${chat.title}`);
+        remove.setAttribute(
+          'aria-label',
+          `Удалить чат: ${chat.title}`
+        );
         remove.title = 'Удалить чат';
 
         remove.addEventListener('click', event => {
           event.stopPropagation();
+
           if (isLoading) return;
 
           const confirmed = window.confirm(
@@ -539,6 +659,7 @@
 
     chats.unshift(chat);
     activeChatId = chat.id;
+
     return chat;
   }
 
@@ -564,6 +685,7 @@
     }, 100);
   }
 
+  // Отображение сообщений
   function renderChat(chat) {
     result.classList.remove('hidden');
     answer.replaceChildren();
@@ -571,25 +693,31 @@
 
     if (!chat || chat.messages.length === 0) {
       const empty = document.createElement('div');
+
       empty.className = 'webai-message-answer';
       empty.textContent = 'Напиши вопрос, чтобы продолжить этот чат.';
+
       answer.appendChild(empty);
       return;
     }
 
     chat.messages.forEach(message => {
       const card = document.createElement('div');
+
       card.className = 'webai-message';
 
       const question = document.createElement('div');
+
       question.className = 'webai-message-question';
       question.textContent = message.question;
 
       const label = document.createElement('div');
+
       label.className = 'webai-message-label';
-      label.textContent = 'Ответ NexAi';
+      label.textContent = 'Ответ NexAI';
 
       const reply = document.createElement('div');
+
       reply.className = 'webai-message-answer';
       reply.textContent = message.answer;
 
@@ -597,22 +725,28 @@
 
       if (message.sources.length) {
         const sourceList = document.createElement('div');
+
         sourceList.className = 'webai-message-sources';
 
         const heading = document.createElement('div');
+
         heading.className = 'webai-message-label';
         heading.textContent = 'Источники';
+
         sourceList.appendChild(heading);
 
         message.sources.forEach(source => {
           const url = validUrl(source.url);
+
           if (!url) return;
 
           const link = document.createElement('a');
+
           link.href = url;
           link.target = '_blank';
           link.rel = 'noopener noreferrer';
           link.textContent = source.title || url;
+
           sourceList.appendChild(link);
         });
 
@@ -620,9 +754,11 @@
       }
 
       const tools = document.createElement('div');
+
       tools.className = 'webai-message-tools';
 
       const copy = document.createElement('button');
+
       copy.type = 'button';
       copy.className = 'webai-copy-button';
       copy.textContent = 'Копировать ответ';
@@ -654,6 +790,7 @@
     sources.replaceChildren();
     input.value = '';
     updateCounter();
+    clearSelectedFile();
   }
 
   newChatButton.addEventListener('click', () => {
@@ -665,24 +802,36 @@
     input.focus();
   });
 
+  // Отправка вопроса или документа
   form.addEventListener('submit', async event => {
     event.preventDefault();
 
     const question = input.value.trim();
+
     if (!question || isLoading) return;
 
-    // Сразу очищаем поле ввода, сохраняя текст вопроса в переменной.
+    const fileToSend = selectedFile;
+
+    const displayedQuestion = fileToSend
+      ? `📎 Файл: ${fileToSend.name}\n\n${question}`
+      : question;
+
     input.value = '';
     updateCounter();
 
     isLoading = true;
     button.disabled = true;
-    button.textContent = 'Ищу…';
+    attachButton.disabled = true;
+    removeFile.disabled = true;
+    button.textContent = 'Обрабатываю…';
 
     let chat = getActiveChat();
-    if (!chat) chat = createChat(question);
 
-    // Передаём модели предыдущие завершённые сообщения этого чата.
+    if (!chat) {
+      chat = createChat(displayedQuestion);
+    }
+
+    // Контекст предыдущих завершённых сообщений
     const history = chat.messages
       .filter(message =>
         message.answer &&
@@ -702,7 +851,7 @@
       .slice(-12);
 
     const message = {
-      question,
+      question: displayedQuestion,
       answer: LOADING_TEXT,
       sources: []
     };
@@ -716,16 +865,31 @@
     renderHistory();
 
     try {
-      const response = await fetch('/api/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          question,
-          history
-        })
-      });
+      let response;
+
+      if (fileToSend) {
+        const formData = new FormData();
+
+        formData.append('file', fileToSend);
+        formData.append('question', question);
+        formData.append('history', JSON.stringify(history));
+
+        response = await fetch('/api/ask-with-file', {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            question,
+            history
+          })
+        });
+      }
 
       let data;
 
@@ -747,9 +911,20 @@
           : 'Сервер не вернул текст ответа.';
 
       message.sources = safeSources(data.sources);
+
+      if (data.truncated) {
+        message.answer +=
+          '\n\n⚠️ Документ большой: NexAI обработал только его начальную часть.';
+      }
+
+      if (fileToSend && selectedFile === fileToSend) {
+        clearSelectedFile();
+      }
     } catch (error) {
-      console.error('WebAI: ошибка отправки вопроса:', error);
-      message.answer = `Не удалось получить ответ: ${error.message}`;
+      console.error('NexAI: ошибка отправки:', error);
+
+      message.answer =
+        `Не удалось получить ответ: ${error.message}`;
     } finally {
       chat.updatedAt = Date.now();
 
@@ -761,6 +936,8 @@
 
       isLoading = false;
       button.disabled = false;
+      attachButton.disabled = false;
+      removeFile.disabled = false;
       button.textContent = 'Спросить ↗';
 
       if (activeChatId === chat.id) {
