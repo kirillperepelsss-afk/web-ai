@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="ru">
 <head>
@@ -37,9 +36,25 @@
           placeholder="Спроси что-нибудь у NexAI..."
         ></textarea>
 
+        <div id="fileInfo" style="display:none; padding: 8px 0; color: #b9b5d6; font-size: 13px;">
+          <span id="fileName"></span>
+          <button id="removeFile" type="button" style="margin-left: 8px;">✕</button>
+        </div>
+
+        <input
+          id="fileInput"
+          type="file"
+          accept=".pdf,.txt,application/pdf,text/plain"
+          hidden
+        >
+
         <div class="bottom">
           <span id="counter">0 / 4000</span>
-          <button id="askButton" type="submit">Спросить ↗</button>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="attachButton" type="button">📎 Файл</button>
+            <button id="askButton" type="submit">Спросить ↗</button>
+          </div>
         </div>
       </form>
 
