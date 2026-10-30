@@ -1,1 +1,17 @@
-{"name":"web-ai","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"vercel dev","start":"node server.js"},"dependencies":{"express":"^5.2.1","openai":"^6.0.0"}}
+
+{
+  "name": "nexai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "openai": "^6.0.0",
+    "multer": "^2.0.2",
+    "pdf-parse": "^2.4.5"
+  }
+}
